@@ -1,0 +1,548 @@
+﻿<html lang="es">
+<head>
+      <title>Araña en WebGL 2.0</title>
+      <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+<body>
+      <h2>Araña - Marcelo Santos Cosme Pamuri</h2>
+      <canvas id="webglcanvas" style="border: none;" width="500" height="500"></canvas>
+      <noscript><p><b>Lo siento, pero ésta página requiere JavaScript.</b></p></noscript>
+      <!--
+        /***************************************************************************/
+        /* Se definen los códigos shaders.                                         */
+        /***************************************************************************/
+      -->
+      <script id="vs" type="vertex">
+        #version 300 es
+        uniform mat4 uMatrizProyeccion;
+        uniform mat4 uMatrizModelo;
+        layout(location = 0) in vec2 aVertices;
+        void main() {
+            gl_Position = uMatrizProyeccion * uMatrizModelo * vec4(aVertices, 0.0, 1.0);
+        }
+      </script>
+
+      <script id="fs" type="fragment">
+        #version 300 es
+        precision mediump float;
+        uniform vec4 uColor;
+        out vec4 color;
+        void main() {
+            color = uColor;
+        }
+      </script>
+
+      <script>
+        /* Convierte de grados a radianes */
+        function toRadians(grados) {
+          return grados * Math.PI / 180;
+        };
+
+        /* Matriz Identidad */
+        function identidad(r) {
+            r[0] = 1; r[4] = 0; r[ 8] = 0; r[12] = 0;
+            r[1] = 0; r[5] = 1; r[ 9] = 0; r[13] = 0;
+            r[2] = 0; r[6] = 0; r[10] = 1; r[14] = 0;
+            r[3] = 0; r[7] = 0; r[11] = 0; r[15] = 1;
+        }
+
+        /* Traslación - glTranslatef */
+        function traslacion(matriz, tx, ty, tz) {
+          var r = new Array(16);
+          r[0] = 1; r[4] = 0; r[ 8] = 0; r[12] = tx;
+          r[1] = 0; r[5] = 1; r[ 9] = 0; r[13] = ty;
+          r[2] = 0; r[6] = 0; r[10] = 1; r[14] = tz;
+          r[3] = 0; r[7] = 0; r[11] = 0; r[15] =  1;
+          multiplica(matriz, matriz, r); // M = M * T
+        }
+
+        /* Escalación - glScalef */
+        function escalacion(matriz, sx, sy, sz) { 
+          var r = new Array(16);
+          r[0] = sx; r[4] =  0; r[ 8] =  0; r[12] =  0;
+          r[1] =  0; r[5] = sy; r[ 9] =  0; r[13] =  0;
+          r[2] =  0; r[6] =  0; r[10] = sz; r[14] =  0;
+          r[3] =  0; r[7] =  0; r[11] =  0; r[15] =  1;
+          multiplica(matriz, matriz, r);
+        }
+
+        /* Rotación sobre Z - glRotatef */
+        function rotacionZ(matriz, theta){
+          let r = new Array(16);
+          var c = Math.cos(toRadians(theta));
+          var s = Math.sin(toRadians(theta));
+          r[0] =  c; r[4] = -s; r[ 8] =  0; r[12] = 0;
+          r[1] =  s; r[5] =  c; r[ 9] =  0; r[13] = 0;
+          r[2] =  0; r[6] =  0; r[10] =  1; r[14] = 0;
+          r[3] =  0; r[7] =  0; r[11] =  0; r[15] = 1;
+          multiplica(matriz, matriz, r);
+        }
+
+        /* Proyección Paralela - glOrtho */
+        function ortho(r, izq, der, abj, arr, cerca, lejos) {
+            r[0] = 2/(der - izq); r[4] =             0; r[ 8] =                  0; r[12] =         -(der + izq)/(der - izq);
+            r[1] =             0; r[5] = 2/(arr - abj); r[ 9] =                  0; r[13] =         -(arr + abj)/(arr - abj);
+            r[2] =             0; r[6] =             0; r[10] = -2/(lejos - cerca); r[14] = -(lejos + cerca)/(lejos - cerca);
+            r[3] =             0; r[7] =             0; r[11] =                  0; r[15] =                                1;
+        }
+
+        /* Multiplicación de matrices de 4 x 4 */
+        function multiplica(c, a, b) {
+          let r = new Array(16);
+          let i, j, k;
+          for (i = 0; i < 4; i++){
+            for (j = 0; j < 4; j++){
+              let s = 0;
+              for (k = 0; k < 4; k++)
+                s = s + a[i + k * 4] * b[k + j * 4];
+                r[i + j * 4] = s;
+              }
+            }
+          for (i = 0; i < 16; i++)
+            c[i] = r[i];
+        }
+
+        var MatrizProyeccion = new Array(16);
+        var MatrizModelo = new Array(16);
+        var uMatrizProyeccion;
+        var uMatrizModelo;
+        var uColor;
+
+        var rectanguloVAO;
+        var trianguloVAO;
+        var circuloVAO;
+        var canvas, gl;
+
+        var tiempo = 0;
+        var velocidadAnimacion = 0.5;
+
+        
+        var patas = [
+        // Patas del lado izquierdo (4 patas)
+        { 
+            posX: -0.1620, posY: -0.0073,
+            anguloBase: 200, // Ángulo inicial del primer segmento respecto al cuerpo
+            angulo1: 200, // Valor actual del ángulo
+            angulo2: 30,  // Valor del segundo segmento
+            angulo3: 20,  // Valor del tercer segmento
+            vel1: 1.5,    // Velocidad del pri segmento
+            vel2: 0.8,    // Velocidad del seg segmento
+            vel3: 1.2,    // Velocidad del ter segmento
+            min1: 180,    // Límite mínimo del primer segmento
+            max1: 220,    // Límite máximo del primer segmento
+            min2: 15,     // Límite mínimo del segundo segmento
+            max2: 45,     // Límite máximo del segundo segmento
+            min3: 0,      // Límite mínimo del tercer segmento
+            max3: 40,     // Límite máximo del tercer segmento
+            longitud1: 0.7, ancho1: 0.15, // Primer segmento (rectángulo)
+            longitud2: 0.6, ancho2: 0.12, // Segundo segmento (rectángulo)
+            longitud3: 0.4, ancho3: 0.1,  // Tercer segmento (triángulo)
+            colorR: 0, colorG: 0, colorB: 0 // Color marrón rojizo
+          },
+        { 
+            posX: -0.1606, posY: 0.0957,
+            anguloBase: 170,
+            angulo1: 170, 
+            angulo2: 30,
+            angulo3: 20,
+            vel1: 1.2,
+            vel2: 0.9,
+            vel3: 1.4,
+            min1: 150,    
+            max1: 190,    
+            min2: 15,     
+            max2: 45,     
+            min3: 0,      
+            max3: 40,     
+            longitud1: 0.8, ancho1: 0.15,
+            longitud2: 0.7, ancho2: 0.12,
+            longitud3: 0.5, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        },
+        { 
+            posX: -0.1263, posY: 0.1380,
+            anguloBase: -210,
+            angulo1: -210,  
+            angulo2: -30,   
+            angulo3: -20,   
+            vel1: 1.3,
+            vel2: 1.0,
+            vel3: 1.5,
+            min1: -230,    
+            max1: -190,    
+            min2: -45,    
+            max2: -15,     
+            min3: -40,     
+            max3: 0,       
+            longitud1: 0.8, ancho1: 0.15,
+            longitud2: 0.7, ancho2: 0.12,
+            longitud3: 0.5, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        },
+        { 
+            posX: -0.1118, posY: 0.1829,
+            anguloBase: 240,
+            angulo1: 135,   
+            angulo2: -30,
+            angulo3: -20,
+            vel1: 1.4,
+            vel2: 0.7,
+            vel3: 1.1,
+            min1: 115,      
+            max1: 155,      
+            min2: -45,      
+            max2: -15,      
+            min3: -40,      
+            max3: 0,        
+            longitud1: 0.7, ancho1: 0.15,
+            longitud2: 0.6, ancho2: 0.12,
+            longitud3: 0.4, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        },
+        
+        // Patas del lado derecho (espejo de las izquierdas)
+        { 
+            posX: 0.0732, posY: 0.0098,
+            anguloBase: -20,
+            angulo1: -20,
+            angulo2: -30,
+            angulo3: -20,
+            vel1: 1.5,
+            vel2: 0.8,
+            vel3: 1.2,
+            min1: -40,      
+            max1: 0,        
+            min2: -45,      
+            max2: -15,      
+            min3: -40,      
+            max3: 0,        
+            longitud1: 0.7, ancho1: 0.15,
+            longitud2: 0.6, ancho2: 0.12,
+            longitud3: 0.4, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        },
+        { 
+            posX: 0.0943, posY: 0.0402,
+            anguloBase: -10,
+            angulo1: -10,
+            angulo2: -30,
+            angulo3: -20,
+            vel1: 1.2,
+            vel2: 0.9,
+            vel3: 1.4,
+            min1: -30,      
+            max1: 10,       
+            min2: -45,      
+            max2: -15,      
+            min3: -40,      
+            max3: 0,        
+            longitud1: 0.8, ancho1: 0.15,
+            longitud2: 0.7, ancho2: 0.12,
+            longitud3: 0.5, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        },
+        { 
+            posX: 0.0745, posY: 0.0733,
+            anguloBase: 30,
+            angulo1: 30,
+            angulo2: 30,
+            angulo3: 20,
+            vel1: 1.3,
+            vel2: 1.0,
+            vel3: 1.5,
+            min1: 10,     
+            max1: 50,       
+            min2: 15,       
+            max2: 45,       
+            min3: 0,        
+            max3: 40,       
+            longitud1: 0.8, ancho1: 0.15,
+            longitud2: 0.7, ancho2: 0.12,
+            longitud3: 0.5, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        },
+        { 
+            posX: 0.1525, posY: 0.1974,
+            anguloBase: 60,
+            angulo1: 60,
+            angulo2: 30,
+            angulo3: 20,
+            vel1: 1.4,
+            vel2: 0.7,
+            vel3: 1.1,
+            min1: 40,       
+            max1: 80,       
+            min2: 15,       
+            max2: 45,       
+            min3: 0,        
+            max3: 40,       
+            longitud1: 0.7, ancho1: 0.15,
+            longitud2: 0.6, ancho2: 0.12,
+            longitud3: 0.4, ancho3: 0.1,
+            colorR: 0, colorG: 0, colorB: 0
+        }
+      ];
+      function actualizarAngulos() {
+          // Actualizar ángulos de cada pata según velocidad y límites
+          for (var i = 0; i < patas.length; i++) {
+              // para el primer segmento
+              patas[i].angulo1 += patas[i].vel1;
+              if (patas[i].angulo1 > patas[i].max1 || patas[i].angulo1 < patas[i].min1) {
+                  patas[i].vel1 = -patas[i].vel1;
+              }
+              
+              //  para el segundo segmento
+              patas[i].angulo2 += patas[i].vel2;
+              if (patas[i].angulo2 > patas[i].max2 || patas[i].angulo2 < patas[i].min2) {
+                  patas[i].vel2 = -patas[i].vel2;
+              }
+              
+              //  para el tercer segmento
+              patas[i].angulo3 += patas[i].vel3;
+              if (patas[i].angulo3 > patas[i].max3 || patas[i].angulo3 < patas[i].min3) {
+                  patas[i].vel3 = -patas[i].vel3;
+              }
+          }
+      }
+
+        function dibujarPata(pata) {
+            // Usar los ángulos calculados directamente
+            var angulo1 = pata.angulo1;
+            var angulo2 = pata.angulo2;
+            var angulo3 = pata.angulo3;
+            
+            // Color de la pata
+            gl.uniform4f(uColor, pata.colorR, pata.colorG, pata.colorB, 1);
+            
+            // Guardar matriz actual para el primer segmento
+            var matrizTemp = new Array(16);
+            for (var i = 0; i < 16; i++) matrizTemp[i] = MatrizModelo[i];
+            
+            // PRIMER SEGMENTO (rectángulo)
+            traslacion(MatrizModelo, pata.posX, pata.posY, 0);
+            rotacionZ(MatrizModelo, angulo1);
+            traslacion(MatrizModelo, pata.longitud1/2, 0, 0); // Centrar en el medio del rectángulo
+            escalacion(MatrizModelo, pata.longitud1, pata.ancho1, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.bindVertexArray(rectanguloVAO);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            // Restaurar para segundo segmento
+            for (var i = 0; i < 16; i++) MatrizModelo[i] = matrizTemp[i];
+            
+            // SEGUNDO SEGMENTO (rectángulo)
+            traslacion(MatrizModelo, pata.posX, pata.posY, 0);
+            rotacionZ(MatrizModelo, angulo1);
+            traslacion(MatrizModelo, pata.longitud1, 0, 0); // Ir al final del primer segmento
+            rotacionZ(MatrizModelo, angulo2);
+            traslacion(MatrizModelo, pata.longitud2/2, 0, 0); // Centrar
+            escalacion(MatrizModelo, pata.longitud2, pata.ancho2, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            // Restaurar  para tercer segmento
+            for (var i = 0; i < 16; i++) MatrizModelo[i] = matrizTemp[i];
+            
+            // TERCER SEGMENTO (triángulo)
+            traslacion(MatrizModelo, pata.posX, pata.posY, 0);
+            rotacionZ(MatrizModelo, angulo1);
+            traslacion(MatrizModelo, pata.longitud1, 0, 0);
+            rotacionZ(MatrizModelo, angulo2);
+            traslacion(MatrizModelo, pata.longitud2, 0, 0);
+            rotacionZ(MatrizModelo, angulo3);
+            traslacion(MatrizModelo, pata.longitud3/2, 0, 0);
+            escalacion(MatrizModelo, pata.longitud3, pata.ancho3, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.bindVertexArray(trianguloVAO);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+
+        function dibuja(){
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            
+            
+            // Actualizar los ángulos de las patas
+            actualizarAngulos();
+            
+            // Dibujar todas las patas
+            for (var i = 0; i < patas.length; i++) {
+                identidad(MatrizModelo);
+                dibujarPata(patas[i]);
+            }
+
+            //Cabeza
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, 0, -0.1, 0);
+            escalacion(MatrizModelo, 0.7, 0.7, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.uniform4f(uColor, 0, 0, 0, 1);
+            gl.bindVertexArray(circuloVAO);
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, 360);
+
+            //Ojito derecho
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, 0.1, -0.17, 0);
+            escalacion(MatrizModelo, 0.1, 0.1, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.uniform4f(uColor, 1, 0, 0, 1);
+            gl.bindVertexArray(circuloVAO);
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, 360);
+
+            //Ojito izquierdo
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, -0.1, -0.17, 0);
+            escalacion(MatrizModelo, 0.1, 0.1, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.uniform4f(uColor, 1, 0, 0, 1);
+            gl.bindVertexArray(circuloVAO);
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, 360);
+
+
+            //Colmillo1
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, 0.13, -0.32, 0);
+            escalacion(MatrizModelo, 0.03, 0.3, 1);
+            rotacionZ(MatrizModelo, 180);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.bindVertexArray(trianguloVAO);
+            gl.uniform4f(uColor, 0, 0, 0, 1);
+            gl.drawArrays(gl.TRIANGLES, 0, 3); //P' = T(-2,2) * Rz(180) * P
+
+            //Colmillo1
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, -0.13, -0.32, 0);
+            escalacion(MatrizModelo, 0.03, 0.3, 1);
+            rotacionZ(MatrizModelo, 0);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.bindVertexArray(trianguloVAO);
+            gl.uniform4f(uColor, 0, 0, 0, 1);
+            gl.drawArrays(gl.TRIANGLES, 0, 3); //P' = T(-2,2) * Rz(180) * P
+
+            //Hilo
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, 0, 3, 0);
+            escalacion(MatrizModelo, 0.01, 5, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.bindVertexArray(rectanguloVAO);
+            gl.uniform4f(uColor, 0, 0, 0, 0.7);
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, 5); //P' = T(-2,2) * Rz(180) * P
+
+            //Cuerpo
+            identidad(MatrizModelo);
+            traslacion(MatrizModelo, 0, 0.6, 0);
+            escalacion(MatrizModelo, 1, 1.5, 1);
+            gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+            gl.uniform4f(uColor, 0, 0, 0, 1);
+            gl.bindVertexArray(circuloVAO);
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, 360);
+            
+            requestAnimationFrame(dibuja);
+        }
+
+        function main(){
+            canvas = document.getElementById("webglcanvas");
+            gl = canvas.getContext("webgl2");
+
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+            // Se compilan y enlazan los shaders
+            var shaderDeVertice = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(shaderDeVertice, document.getElementById("vs").text.trim());
+            gl.compileShader(shaderDeVertice);
+
+            var shaderDeFragmento = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(shaderDeFragmento, document.getElementById("fs").text.trim());
+            gl.compileShader(shaderDeFragmento);
+
+            var programaID = gl.createProgram();
+            gl.attachShader(programaID, shaderDeVertice); 
+            gl.attachShader(programaID, shaderDeFragmento);
+            gl.linkProgram(programaID);
+
+            gl.useProgram(programaID);
+
+            // Crear geometría para el RECTÁNGULO (segmentos de pata)
+            var verticesRectangulo = [
+                -0.5, -0.5,  // 1
+                 0.5, -0.5,  // 2
+                -0.5,  0.5,  // 3
+                 0.5,  0.5   // 4
+                 
+            ];
+
+            rectanguloVAO = gl.createVertexArray();
+            gl.bindVertexArray(rectanguloVAO);
+
+            var bufferRectangulo = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufferRectangulo);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesRectangulo), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.bindVertexArray(null);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+
+
+
+            // Punta de la pata
+            var verticesTriangulo = [
+                -0.5, -0.5, // Base izquierda
+                 2, 0, // Base derecha
+                 -0.5,  0.5  // Vértice superior
+            ];
+
+            trianguloVAO = gl.createVertexArray();
+            gl.bindVertexArray(trianguloVAO);
+
+            var bufferTriangulo = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufferTriangulo);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesTriangulo), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.bindVertexArray(null);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            
+
+
+            //Cuerpo y cabeza
+            var verticesCirculo = [];
+            var radio = 0.35;
+
+            for (var i = 0; i < 360; i++) {
+              verticesCirculo.push(radio * Math.cos(i * Math.PI / 180));
+              verticesCirculo.push(radio * Math.sin(i * Math.PI / 180));
+            }
+
+            circuloVAO = gl.createVertexArray();
+            gl.bindVertexArray(circuloVAO);
+
+            var codigoVertices = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, codigoVertices);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesCirculo), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+            gl.bindVertexArray(null);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+
+            
+
+            uColor = gl.getUniformLocation(programaID, "uColor");
+            uMatrizProyeccion = gl.getUniformLocation(programaID, "uMatrizProyeccion");
+            uMatrizModelo = gl.getUniformLocation(programaID, "uMatrizModelo");
+
+            ortho(MatrizProyeccion, -3, 3, -3, 3, -1, 1);
+            gl.uniformMatrix4fv(uMatrizProyeccion, false, MatrizProyeccion);
+
+            gl.clearColor(1, 0, 0, 0.7);
+            
+            dibuja();
+        }
+        
+        window.onload = main;
+    </script>
+</body>
+</html>
