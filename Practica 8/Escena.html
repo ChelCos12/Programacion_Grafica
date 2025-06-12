@@ -1,0 +1,1118 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    #content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      gap: 20px;
+    }
+
+    #canvas-holder {
+      flex: 1;
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    #webglcanvas {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    #tools {
+      width: 320px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      height: fit-content;
+    }
+
+    h2 {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+      font-size: 2rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    h3 {
+      color: #333;
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 1.4rem;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 8px;
+    }
+
+    h4 {
+      color: #555;
+      margin: 25px 0 15px 0;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+    }
+
+    h4::before {
+      content: "⚙️";
+      margin-right: 8px;
+    }
+
+    /* Estilos para checkboxes */
+    .checkbox-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .checkbox-item:hover {
+      background: #e9ecef;
+      transform: translateX(5px);
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #667eea;
+      border-radius: 4px;
+      margin-right: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .checkbox-item input[type="checkbox"]:checked {
+      background: #667eea;
+      border-color: #667eea;
+    }
+
+    .checkbox-item input[type="checkbox"]:checked::after {
+      content: "✓";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .checkbox-item label {
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    /* Estilos para controles deslizantes */
+    .control-group {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 4px solid #667eea;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .slider-container label {
+      font-weight: 600;
+      color: #555;
+      min-width: 20px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #ddd;
+      outline: none;
+      appearance: none;
+      transition: all 0.3s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #5a6fd8;
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .value-display {
+      background: #667eea;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    /* Animaciones */
+    .control-group:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      #content {
+        flex-direction: column;
+      }
+      
+      #tools {
+        width: 100%;
+      }
+    }     
+  </style>  
+  <title>Textura sobre un Cubo en WebGL 2.0</title>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+</head>
+   <body>
+    <div id="content">
+    <div id="canvas-holder">
+      <canvas id="webglcanvas" width="1000" height="1000"></canvas>
+      <img src="dado7.png" id="imagenTextura" hidden />
+      <img src="dado6.png" id="imagenTextura1" hidden />
+      <img src="dado5.png" id="imagenTextura2" hidden />
+      <img src="dado4.png" id="imagenTextura3" hidden />
+      <img src="dado3.png" id="imagenTextura4" hidden />
+      </div>
+
+      <div id="tools">
+      <h3>Opciones</h3>
+      
+      <div class="checkbox-container">
+        <div class="checkbox-item">
+          <input type="checkbox" id="animacion" >
+          <label for="animacion">Animación</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="wireframe">
+          <label for="wireframe">Wireframe </label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="vertices">
+          <label for="vertices">Solo Vértices</label>
+        </div>
+      </div>
+
+      <h4>Rotación</h4>
+      <div class="control-group">
+        <div class="slider-container">
+          <label>X:</label>
+          <input type="range" id="rotacionX" min="-180" max="180" value="0" step="1">
+          <span class="value-display" id="valorRotX">0°</span>
+        </div>
+        <div class="slider-container">
+          <label>Y:</label>
+          <input type="range" id="rotacionY" min="-180" max="180" value="0" step="1">
+          <span class="value-display" id="valorRotY">0°</span>
+        </div>
+        <div class="slider-container">
+          <label>Z:</label>
+          <input type="range" id="rotacionZ" min="-180" max="180" value="0" step="1">
+          <span class="value-display" id="valorRotZ">0°</span>
+        </div>
+      </div>
+
+      <h4>Traslación</h4>
+      <div class="control-group">
+        <div class="slider-container">
+          <label>X:</label>
+          <input type="range" id="traslacionX" min="-5" max="5" value="0" step="0.1">
+          <span class="value-display" id="valorTrasX">0</span>
+        </div>
+        <div class="slider-container">
+          <label>Y:</label>
+          <input type="range" id="traslacionY" min="-5" max="5" value="0" step="0.1">
+          <span class="value-display" id="valorTrasY">0</span>
+        </div>
+        <div class="slider-container">
+          <label>Z:</label>
+          <input type="range" id="traslacionZ" min="-5" max="5" value="0" step="0.1">
+          <span class="value-display" id="valorTrasZ">0</span>
+        </div>
+      </div>
+
+      <h4>Escalación</h4>
+      <div class="control-group">
+        <div class="slider-container">
+          <label>X:</label>
+          <input type="range" id="escalacionX" min="0.1" max="6" value="2" step="0.1">
+          <span class="value-display" id="valorEscX">2</span>
+        </div>
+        <div class="slider-container">
+          <label>Y:</label>
+          <input type="range" id="escalacionY" min="0.1" max="6" value="2" step="0.1">
+          <span class="value-display" id="valorEscY">2</span>
+        </div>
+        <div class="slider-container">
+          <label>Z:</label>
+          <input type="range" id="escalacionZ" min="0.1" max="6" value="2" step="0.1">
+          <span class="value-display" id="valorEscZ">2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+      <!--
+        /***************************************************************************/
+        /* Se definen los códigos shaders.                                         */
+        /***************************************************************************/
+      -->
+      <script id="vs" type="vertex">
+        #version 300 es
+        precision mediump float;
+        uniform mat4 uMatrizProyeccion;
+        uniform mat4 uMatrizVista;
+        uniform mat4 uMatrizModelo;
+
+        layout(location = 0) in vec3 aVertices;
+        layout(location = 1) in vec2 aCoordenadasDeTextura;
+        layout(location = 2) in vec3 aNormales;  // Agregar normales
+
+        out vec2 vCoordenadasDeTextura;
+        out vec3 vNormales;   // Pasar normales al fragment shader
+        out vec3 vVertices;   // Pasar posición al fragment shader
+
+        void main() {
+            vCoordenadasDeTextura = aCoordenadasDeTextura;
+            
+            // Transformar normales
+            vNormales = mat3(uMatrizVista) * mat3(uMatrizModelo) * normalize(aNormales);
+            
+            // Transformar vértices
+            vec4 vertices = uMatrizVista * uMatrizModelo * vec4(aVertices, 1.0);
+            vVertices = vertices.xyz / vertices.w;
+            
+            gl_Position = uMatrizProyeccion * vertices;
+        }
+      </script>
+
+      <script id="fs" type="fragment">
+        #version 300 es
+        precision mediump float;
+
+        uniform sampler2D uUnidadDeTextura;
+        uniform vec3 uPosicionVista;
+        uniform vec3 uPosicionLuz;
+        uniform vec3 u_Ia;
+        uniform vec3 u_Id;
+        uniform vec3 u_Is;
+        uniform float u_brillo;
+
+        in vec2 vCoordenadasDeTextura;
+        in vec3 vNormales;
+        in vec3 vVertices;
+
+        out vec4 color;
+
+        void main() {
+            // Obtener color de la textura
+            vec4 textureColor = texture(uUnidadDeTextura, vCoordenadasDeTextura);
+            
+            // Cálculos de iluminación
+            vec3 N = normalize(vNormales);
+            vec3 L = normalize(uPosicionLuz - vVertices);
+            vec3 V = normalize(uPosicionVista - vVertices);
+            vec3 H = normalize(L + V);
+            
+            float NL = max(0.0, dot(N, L));
+            float NH = max(0.0, dot(N, H));
+            
+            // Usar el color de la textura como material
+            vec3 materialColor = textureColor.rgb;
+            
+            vec3 luzAmbiente = materialColor * u_Ia * 0.6;
+            vec3 luzDifusa = materialColor * u_Id * NL;
+            vec3 luzEspecular = u_Is * pow(NH, u_brillo) * 0.8;
+            
+            vec3 rgb = luzAmbiente + luzDifusa + luzEspecular;
+            color = vec4(rgb, textureColor.a);
+        }
+      </script>
+	
+      <script>
+        'use strict';
+
+        /* Variables globales */
+        var canvas;
+        var gl;
+        var programaID;
+        var textura;
+        var codigoDeTextura;
+        var texturas = [];
+
+        /* Variables Uniformes */
+        var uMatrizProyeccion;
+        var uMatrizVista;
+        var uMatrizModelo;
+        var uUnidadDeTextura;
+
+        /* Matrices */
+        var MatrizProyeccion = new Array(16);
+        var MatrizVista = new Array(16);
+        var MatrizModelo = new Array(16);
+
+        /* Incremento del ángulo de la animación */
+        var rotX = 0;
+        var rotY = 0;
+        var rotZ = 0;
+        const INCX = 0.3;
+        const INCY = 0.2;
+        const INCZ = 0.4;
+        var incX = 0;
+        var incY = 0;
+        var incZ = 0;
+
+        var animacion = false;
+
+        
+         // Variables para transformaciones manuales
+        var rotXManual = 0;
+        var rotYManual = 0;
+        var rotZManual = 0;
+        var trasX = 0;
+        var trasY = 0;
+        var trasZ = 0;
+        var escX = 1;
+        var escY = 1;
+        var escZ = 1;
+
+        //para la iluminacion
+        var uPosicionVista;
+        var uPosicionLuz;
+        var u_Ia, u_Id, u_Is;
+        var u_brillo;
+
+        var posicionVista = [0, 0, 0];
+        var posicionLuz = [3, 3, 1];
+
+        var incY = INCY;
+        var tiempo_real, fin, duracion;
+        var inicio = Date.now(); // Tiempo Inicial
+        const PERIODO_MOVIMIENTO = 0.01; // 1/60 = 0.0167 (60 cuadros por seg.)
+        var tiempoMovimiento = PERIODO_MOVIMIENTO;
+        // Para ver el wireframe
+        var modoWireframe = false;
+        // Para ver solo vertices
+        var modoVertices = false;
+
+        /***************************************************************************/
+        /* Se crean, compilan y enlazan los programas Shader                       */
+        /***************************************************************************/
+        function compilaEnlazaLosShaders() {
+
+          /* Se compila el shader de vertice */
+          var shaderDeVertice = gl.createShader(gl.VERTEX_SHADER);
+          gl.shaderSource(shaderDeVertice, document.getElementById("vs").text.trim());
+          gl.compileShader(shaderDeVertice);
+          if (!gl.getShaderParameter(shaderDeVertice, gl.COMPILE_STATUS)) {
+             console.error(gl.getShaderInfoLog(shaderDeVertice));
+          }
+
+          /* Se compila el shader de fragmento */
+          var shaderDeFragmento = gl.createShader(gl.FRAGMENT_SHADER);
+          gl.shaderSource(shaderDeFragmento, document.getElementById("fs").text.trim());
+          gl.compileShader(shaderDeFragmento);
+          if (!gl.getShaderParameter(shaderDeFragmento, gl.COMPILE_STATUS)) {
+             console.error(gl.getShaderInfoLog(shaderDeFragmento));
+          }
+
+          /* Se enlaza ambos shader */
+          programaID = gl.createProgram();
+          gl.attachShader(programaID, shaderDeVertice); 
+          gl.attachShader(programaID, shaderDeFragmento);
+          gl.linkProgram(programaID);
+          if (!gl.getProgramParameter(programaID, gl.LINK_STATUS)) {
+             console.error(gl.getProgramInfoLog(programaID));
+          }
+        }
+
+        /***************************************************************************/
+        /* Transformaciones mediante matrices                                      */
+        /***************************************************************************/
+
+        /* Convierte de grados a radianes */
+        function toRadians(grados) {
+          return grados * Math.PI / 180;
+        };
+
+        /* Matriz Identidad */
+        function identidad(r) {
+          r[0] = 1; r[4] = 0; r[ 8] = 0; r[12] = 0;
+          r[1] = 0; r[5] = 1; r[ 9] = 0; r[13] = 0;
+          r[2] = 0; r[6] = 0; r[10] = 1; r[14] = 0;
+          r[3] = 0; r[7] = 0; r[11] = 0; r[15] = 1;
+        }
+
+        /* Traslación - glTranslatef */
+        function traslacion(matriz, tx, ty, tz) {
+          var r = new Array(16);
+          r[0] = 1; r[4] = 0; r[ 8] = 0; r[12] = tx;
+          r[1] = 0; r[5] = 1; r[ 9] = 0; r[13] = ty;
+          r[2] = 0; r[6] = 0; r[10] = 1; r[14] = tz;
+          r[3] = 0; r[7] = 0; r[11] = 0; r[15] =  1;
+          multiplica(matriz, matriz, r);
+        }
+
+        /* Escalación - glScalef */
+        function escalacion(matriz, sx, sy, sz) { 
+          var r = new Array(16);
+          r[0] = sx; r[4] =  0; r[ 8] =  0; r[12] =  0;
+          r[1] =  0; r[5] = sy; r[ 9] =  0; r[13] =  0;
+          r[2] =  0; r[6] =  0; r[10] = sz; r[14] =  0;
+          r[3] =  0; r[7] =  0; r[11] =  0; r[15] =  1;
+          multiplica(matriz, matriz, r);
+        }
+
+        /* Rotación sobre X - glRotatef */
+        function rotacionX(matriz, theta){
+          let r = new Array(16);
+          var c = Math.cos(toRadians(theta));
+          var s = Math.sin(toRadians(theta));
+          r[0] =  1; r[4] =  0; r[ 8] =  0; r[12] = 0;
+          r[1] =  0; r[5] =  c; r[ 9] = -s; r[13] = 0;
+          r[2] =  0; r[6] =  s; r[10] =  c; r[14] = 0;
+          r[3] =  0; r[7] =  0; r[11] =  0; r[15] = 1;
+          multiplica(matriz, matriz, r); 
+        }
+
+        /* Rotación sobre Y - glRotatef */
+        function rotacionY(matriz, theta){
+          let r = new Array(16);
+          var c = Math.cos(toRadians(theta));
+          var s = Math.sin(toRadians(theta));
+          r[0] =  c; r[4] =  0; r[ 8] =  s; r[12] = 0;
+          r[1] =  0; r[5] =  1; r[ 9] =  0; r[13] = 0;
+          r[2] = -s; r[6] =  0; r[10] =  c; r[14] = 0;
+          r[3] =  0; r[7] =  0; r[11] =  0; r[15] = 1;
+          multiplica(matriz, matriz, r);
+        }
+	
+        /* Rotación sobre Z - glRotatef */
+        function rotacionZ(matriz, theta){
+          let r = new Array(16);
+          var c = Math.cos(toRadians(theta));
+          var s = Math.sin(toRadians(theta));
+          r[0] =  c; r[4] = -s; r[ 8] =  0; r[12] = 0;
+          r[1] =  s; r[5] =  c; r[ 9] =  0; r[13] = 0;
+          r[2] =  0; r[6] =  0; r[10] =  1; r[14] = 0;
+          r[3] =  0; r[7] =  0; r[11] =  0; r[15] = 1;
+          multiplica(matriz, matriz, r);
+        }
+
+        /* Proyección Paralela - glOrtho */
+        function ortho(r, izq, der, abj, arr, cerca, lejos) {
+          r[0] = 2/(der - izq); r[4] =             0; r[ 8] =                  0; r[12] =         -(der + izq)/(der - izq);
+          r[1] =             0; r[5] = 2/(arr - abj); r[ 9] =                  0; r[13] =         -(arr + abj)/(arr - abj);
+          r[2] =             0; r[6] =             0; r[10] = -2/(lejos - cerca); r[14] = -(lejos + cerca)/(lejos - cerca);
+          r[3] =             0; r[7] =             0; r[11] =                  0; r[15] =                                1;
+        }
+
+        /* Proyección Perspectiva - glFrustum */
+        function frustum(r, izq, der, abj, arr, cerca, lejos) {
+          r[0] = 2*cerca/(der-izq); r[4] =                 0; r[ 8] =          (der+izq)/(der-izq); r[12] =                            0;
+          r[1] =                 0; r[5] = 2*cerca/(arr-abj); r[ 9] =          (arr+abj)/(arr-abj); r[13] =                            0;
+          r[2] =                 0; r[6] =                 0; r[10] = -(lejos+cerca)/(lejos-cerca); r[14] = -2*lejos*cerca/(lejos-cerca);
+          r[3] =                 0; r[7] =                 0; r[11] =                           -1; r[15] =                            0;
+        }
+
+        /* Proyección Perspectiva - gluPerspective */
+        function perspective(r, fovy, aspecto, cerca, lejos) {
+          var ang = fovy * 0.5;
+          var f = (Math.abs(Math.sin(toRadians(ang))) < 1e-8 ? 0 : 1) / Math.tan(toRadians(ang));
+          r[0] = f/aspecto; r[4] = 0; r[ 8] =                                  0; r[12] =                                       0;
+          r[1] =         0; r[5] = f; r[ 9] =                                  0; r[13] =                                       0;
+          r[2] =         0; r[6] = 0; r[10] = -(lejos + cerca) / (lejos - cerca); r[14] =  -2.0 * lejos * cerca / (lejos - cerca);
+          r[3] =         0; r[7] = 0; r[11] =                              - 1.0; r[15] =                                       0;
+        }
+
+        /* Multiplicación de matrices de 4 x 4 */
+        function multiplica(c, a, b) {
+          let r = new Array(16);
+          let i, j, k;
+          for (i = 0; i < 4; i++){
+            for (j = 0; j < 4; j++){
+              let s = 0;
+              for (k = 0; k < 4; k++)
+                s = s + a[i + k * 4] * b[k + j * 4];
+                r[i + j * 4] = s;
+              }
+            }
+          for (i = 0; i < 16; i++)
+            c[i] = r[i];
+        }
+
+        function multiplicaMV(resultado, matriz, vector) {
+          resultado[0] = matriz[0] * vector[0] + matriz[4] * vector[1] + matriz[8] * vector[2] + matriz[12];
+          resultado[1] = matriz[1] * vector[0] + matriz[5] * vector[1] + matriz[9] * vector[2] + matriz[13];
+          resultado[2] = matriz[2] * vector[0] + matriz[6] * vector[1] + matriz[10] * vector[2] + matriz[14];
+        }
+
+        /***********************************************************************************/
+        /* Se define la geometría y se almacenan en los buffers de memoria y se renderiza. */
+        /***********************************************************************************/
+        class Cubo {
+
+          /**
+           *       vertices            coord_textura
+           *   x1,y2      x2,y2      u1,v2       u2,v2
+           *      ----------            ---------- 
+           *     |        / |          |        / | 
+           *     |      /   |          |      /   | 
+           *     |    /     |          |    /     |
+           *     | /        |          | /        |
+           *      ----------            ---------- 
+           *   x1,y1      x2,y1      u1,v1       u2,v1
+           */
+          constructor(gl) {
+
+            /* Las coordenadas cartesianas (x, y, z) */
+            var vertices = [
+              // Frente
+              -1, -1,  1, // 4   0
+               1, -1,  1, // 5   1
+               1,  1,  1, // 6   2
+              -1,  1,  1, // 7   3
+              // Atrás
+              -1,  1, -1, // 3   4
+               1,  1, -1, // 2   5
+               1, -1, -1, // 1   6
+              -1, -1, -1, // 0   7
+              // Izquierda
+              -1, -1, -1, // 0   8
+              -1, -1,  1, // 4   9
+              -1,  1,  1, // 7  10 
+              -1,  1, -1, // 3  11
+              // Derecha
+               1, -1,  1, // 5  12 
+               1, -1, -1, // 1  13
+               1,  1, -1, // 2  14
+               1,  1,  1, // 6  15
+              // Abajo
+              -1, -1, -1, // 0  16
+               1, -1, -1, // 1  17
+               1, -1,  1, // 5  18
+              -1, -1,  1, // 4  19
+              // Arriba
+              -1,  1,  1, // 7  20
+               1,  1,  1, // 6  21
+               1,  1, -1, // 2  22
+              -1,  1, -1  // 3  23
+            ];
+
+            /* Coordenadas de textura (u, v) */
+            var coord_textura = [
+              // Frente
+               1/2, 1/2, // 0
+               3/4, 1/2, // 1
+               3/4, 3/4, // 2
+               1/2, 3/4, // 3
+              // Atrás
+               1/2, 0,   // 4
+               3/4, 0,   // 5
+               3/4, 1/4, // 6
+               1/2, 1/4, // 7
+              // Izquierda
+               1/4, 1/2, // 8
+               1/2, 1/2, // 9
+               1/2, 3/4, // 10
+               1/4, 3/4, // 11
+              // Derecha
+               3/4, 1/2, // 12
+               1, 1/2,   // 12
+               1, 3/4,   // 14
+               3/4, 3/4, // 15
+              // Abajo
+               1/2, 1/4, // 16
+               3/4, 1/4, // 17
+               3/4, 1/2, // 18
+               1/2, 1/2, // 19
+              // Arriba
+               1/2, 3/4, // 20
+               3/4, 3/4, // 21
+               3/4, 1,   // 22
+               1/2, 1    // 23
+            ];
+
+            var normales = [
+            // Frente
+              0,  0,  1, // 4   0
+              0,  0,  1, // 5   1
+              0,  0,  1, // 6   2
+              0,  0,  1, // 7   3	
+            // Atrás
+              0,  0, -1, // 3   4	
+              0,  0, -1, // 2   5
+              0,  0, -1, // 1   6	
+              0,  0, -1, // 0   7	
+            // Izquierda
+            -1,  0,  0, // 0   8
+            -1,  0,  0, // 4   9
+            -1,  0,  0, // 7  10
+            -1,  0,  0, // 3  11
+            // Derecha
+              1,  0,  0, // 5  12
+              1,  0,  0, // 1  13
+              1,  0,  0, // 2  14
+              1,  0,  0, // 6  15
+            // Abajo
+              0, -1,  0, // 0  16
+              0, -1,  0, // 1  17
+              0, -1,  0, // 5  18
+              0, -1,  0, // 4  19
+            // Arriba
+              0,  1,  0, // 7  20
+              0,  1,  0, // 6  21
+              0,  1,  0, // 2  22
+              0,  1,  0  // 3  23
+          ];
+
+
+
+            /* Indices */
+            var indices = [ 
+              0,  1,  2,  0,  2,  3, // Frente
+              4,  5,  6,  4,  6,  7, // Atrás
+              8,  9, 10,  8, 10, 11, // Izquierda 
+             12, 13, 14, 12, 14, 15, // Derecha
+             16, 17, 18, 16, 18, 19, // Abajo
+             20, 21, 22, 20, 22, 23  // Arriba
+            ];            
+
+            /* Se crea el objeto del arreglo de vértices (VAO) */
+            this.cuboVAO = gl.createVertexArray();
+            gl.bindVertexArray(this.cuboVAO);
+
+
+            /* Se genera un nombre (código) para el buffer */ 
+            var codigoVertices = gl.createBuffer();
+
+            /* Se asigna un nombre (código) al buffer */
+            gl.bindBuffer(gl.ARRAY_BUFFER, codigoVertices);
+         
+            /* Se transfiere los datos desde la memoria nativa al buffer de la GPU */
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+            /* Se habilita el arreglo de los vértices (indice = 0) */
+            gl.enableVertexAttribArray(0);
+
+            /* Se especifica los atributos del arreglo de vértices */
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+
+            /* Se genera un nombre (código) para el buffer */ 
+            var codigoCoordenadasDeTextura = gl.createBuffer();
+
+            /* Se asigna un nombre (código) al buffer */
+            gl.bindBuffer(gl.ARRAY_BUFFER, codigoCoordenadasDeTextura);
+
+            /* Se transfiere los datos desde la memoria nativa al buffer de la GPU */
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(coord_textura), gl.STATIC_DRAW);
+
+            /* Se habilita el arreglo de las coordenadas de textura (indice = 1) */
+            gl.enableVertexAttribArray(1);
+
+            /* Se especifica el arreglo de las coordenadas de textura */
+            gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+
+            var normalBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normales), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(2);
+            gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
+
+
+            /* Se genera un nombre (código) para el buffer */
+            var codigoDeIndices = gl.createBuffer();
+
+            /* Se asigna un nombre (código) al buffer */
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, codigoDeIndices);
+
+            /* Se transfiere los datos desde la memoria nativa al buffer de la GPU */
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+
+            /* Se desactiva el objeto del arreglo de vértices */
+            gl.bindVertexArray(null);
+
+            /* Se deja de asignar un nombre (código) al buffer */
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+            /* Se deja de asignar un nombre (código) al buffer */
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+          }
+
+          muestra(gl) {
+
+            /* Se activa el objeto del arreglo de vértices */
+            gl.bindVertexArray(this.cuboVAO);
+
+            /* Renderiza las primitivas desde los datos de los arreglos (vértices,
+             * coordenadas de textura e indices) */
+             gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+
+            /* Se desactiva el objeto del arreglo de vértices */
+            gl.bindVertexArray(null);
+          }
+
+        }
+
+        /***************************************************************************/
+        /* Lee la Textura                                                          */
+        /***************************************************************************/
+        function leeLaTextura(gl, ID_del_archivo, codigoDeTextura) {
+
+          /* Se asigna un nombre (código) a la textura */
+          gl.bindTexture(gl.TEXTURE_2D, codigoDeTextura);
+
+          /* true, invierte los píxeles en el orden de abajo hacia arriba que WebGL espera */
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+          /* Obtiene la imagen */
+          var imagen = document.getElementById(ID_del_archivo);
+
+          /* Se lee la textura */
+          /* |  tipo   |0=1 resol|RGB/RGBA |orden col|tip datos| buffer  | */
+          /* |    1    |    2    |    3    |    4    |    5    |    6    | */	    
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, imagen);
+
+          /* Para que el patrón de textura se agrande y se acomode a una área grande */
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+          /* Para que el patrón de textura se reduzca y se acomode a una área pequeña */
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+          /* Para repetir la textura tanto en s y t fuera del rango del 0 al 1
+            * POR DEFECTO! */
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+          /* Para limitar la textura tanto de s y t dentro del rango del 0 al 1 */
+          //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+          /* Se deja de asignar un nombre (código) a la textura */
+          gl.bindTexture(gl.TEXTURE_2D, null);
+
+        }
+
+        function animacionCheckbox() {
+          var r = document.getElementById("animacion").checked
+          if (r != animacion) {
+            animacion = r;
+            incX = incX == 0 ? INCY : 0;
+            incY = incY == 0 ? INCY : 0;
+            incZ = incZ == 0 ? INCZ : 0;
+            dibuja();
+          }
+        }
+
+        function cambiarRotacion(){
+          /* Se efectua los incrementos para la animación */
+          fin = Date.now(); // Tiempo Final
+          duracion = fin - inicio;
+          inicio = fin;
+          tiempo_real = duracion / 1000.0;
+
+          tiempoMovimiento = tiempoMovimiento - tiempo_real;
+          if (tiempoMovimiento < 0.001) { 
+            tiempoMovimiento = PERIODO_MOVIMIENTO;
+            rotY = rotY + incY;
+          }
+        }
+
+        function verticesCheckbox() {
+          modoVertices = document.getElementById("vertices").checked;
+          // Si se activa modo vértices, desactivar wireframe
+          if (modoVertices) {
+            document.getElementById("wireframe").checked = false;
+            modoWireframe = false;
+          }
+        }
+        
+
+        function wireframeCheckbox() {
+          modoWireframe = document.getElementById("wireframe").checked;
+          // Si se activa wireframe, desactivar modo vértices
+          if (modoWireframe) {
+            document.getElementById("vertices").checked = false;
+            modoVertices = false;
+          }
+        }
+
+        function actualizaRotacion() {
+          rotXManual = parseFloat(document.getElementById("rotacionX").value);
+          rotYManual = parseFloat(document.getElementById("rotacionY").value);
+          rotZManual = parseFloat(document.getElementById("rotacionZ").value);
+          
+          document.getElementById("valorRotX").textContent = rotXManual + "°";
+          document.getElementById("valorRotY").textContent = rotYManual + "°";
+          document.getElementById("valorRotZ").textContent = rotZManual + "°";
+
+          dibuja();
+        }
+
+        function actualizaTraslacion() {
+          trasX = parseFloat(document.getElementById("traslacionX").value);
+          trasY = parseFloat(document.getElementById("traslacionY").value);
+          trasZ = parseFloat(document.getElementById("traslacionZ").value);
+          
+          document.getElementById("valorTrasX").textContent = trasX;
+          document.getElementById("valorTrasY").textContent = trasY;
+          document.getElementById("valorTrasZ").textContent = trasZ;
+
+          dibuja();
+        }
+
+        function actualizaEscalacion() {
+          escX = parseFloat(document.getElementById("escalacionX").value);
+          escY = parseFloat(document.getElementById("escalacionY").value);
+          escZ = parseFloat(document.getElementById("escalacionZ").value);
+          
+          document.getElementById("valorEscX").textContent = escX;
+          document.getElementById("valorEscY").textContent = escY;
+          document.getElementById("valorEscZ").textContent = escZ;
+
+          dibuja();
+        }
+
+        /***************************************************************************/
+        /* Se renderizan todos los objetos                                         */
+        /***************************************************************************/
+
+        function dibuja() {
+
+          /* Inicializa el buffer de color */
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+          /* Matriz del Modelo */
+          identidad(MatrizModelo);
+
+          traslacion(MatrizModelo, trasX, trasY, trasZ);
+          rotacionX(MatrizModelo, rotXManual + rotX);
+          rotacionY(MatrizModelo, rotYManual + rotY);
+          rotacionZ(MatrizModelo, rotZManual + rotZ);
+          escalacion(MatrizModelo, escX, escY, escZ);
+          gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.uniform1i(uUnidadDeTextura, 0);
+          gl.bindTexture(gl.TEXTURE_2D, codigoDeTextura);
+
+          textura.muestra(gl);
+
+          identidad(MatrizModelo);
+          traslacion(MatrizModelo, trasX+2, trasY+2, trasZ);
+          rotacionX(MatrizModelo, rotXManual + rotX);
+          rotacionY(MatrizModelo, rotYManual + rotY);
+          rotacionZ(MatrizModelo, rotZManual + rotZ);
+          escalacion(MatrizModelo, escX, escY, escZ);
+          gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.uniform1i(uUnidadDeTextura, 0);
+          gl.bindTexture(gl.TEXTURE_2D, texturas[0]);
+          textura.muestra(gl);
+
+          identidad(MatrizModelo);
+          traslacion(MatrizModelo, trasX-2, trasY-2, trasZ);
+          rotacionX(MatrizModelo, rotXManual + rotX);
+          rotacionY(MatrizModelo, rotYManual + rotY);
+          rotacionZ(MatrizModelo, rotZManual + rotZ);
+          escalacion(MatrizModelo, escX, escY, escZ);
+          gl.uniformMatrix4fv(uMatrizModelo, false, MatrizModelo);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.uniform1i(uUnidadDeTextura, 0);
+          gl.bindTexture(gl.TEXTURE_2D, texturas[1]);
+          textura.muestra(gl);
+
+
+
+
+          /* Se efectua los incrementos para la animación */
+          fin = Date.now(); // Tiempo Final
+          duracion = fin - inicio;
+          inicio = fin;
+          tiempo_real = duracion / 1000.0;
+
+          tiempoMovimiento = tiempoMovimiento - tiempo_real;
+          if (tiempoMovimiento < 0.001) { 
+            tiempoMovimiento = PERIODO_MOVIMIENTO;
+            rotX = rotX + incX;
+            rotY = rotY + incY;
+            rotZ = rotZ + incZ;
+          }
+
+          /* Solicita que el navegador llame nuevamente a dibuja */
+          requestAnimationFrame(dibuja);          
+        }
+
+        function main() {
+
+          /* Paso 1: Se prepara el lienzo y se obtiene el contexto del WebGL.        */
+          canvas = document.getElementById("webglcanvas");
+          gl = canvas.getContext("webgl2");
+          if (!gl) {
+             document.write("WebGL 2.0 no está disponible en tu navegador");
+             return;
+          }
+
+          document.getElementById("animacion").checked = false;
+          document.getElementById("wireframe").checked = false;
+          document.getElementById("wireframe").onchange = wireframeCheckbox;
+          
+          document.getElementById("vertices").checked = false;
+          document.getElementById("vertices").onchange = verticesCheckbox;
+
+
+          document.getElementById("animacion").onchange = animacionCheckbox;
+          
+
+          // Eventos para rotación
+          document.getElementById("rotacionX").oninput = actualizaRotacion;
+          document.getElementById("rotacionY").oninput = actualizaRotacion;
+          document.getElementById("rotacionZ").oninput = actualizaRotacion;
+
+          // Eventos para traslación
+          document.getElementById("traslacionX").oninput = actualizaTraslacion;
+          document.getElementById("traslacionY").oninput = actualizaTraslacion;
+          document.getElementById("traslacionZ").oninput = actualizaTraslacion;
+
+          // Eventos para escalación
+          document.getElementById("escalacionX").oninput = actualizaEscalacion;
+          document.getElementById("escalacionY").oninput = actualizaEscalacion;
+          document.getElementById("escalacionZ").oninput = actualizaEscalacion;
+
+          // Se define la ventana de despliegue
+          gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+          /* Paso 2: Se crean, compilan y enlazan los programas Shader               */
+          compilaEnlazaLosShaders();
+
+          /* Paso 3: Se define la geometría y se almacenan en los buffers de memoria.*/
+          textura = new Cubo(gl);
+
+          let nombresImagenes = ["imagenTextura1", "imagenTextura2", "imagenTextura3", "imagenTextura4"];
+          for (let i = 0; i < nombresImagenes.length; i++) {
+            texturas[i] = gl.createTexture();
+            leeLaTextura(gl, nombresImagenes[i], texturas[i]);
+          }
+
+
+          /* Genera un nombre (código) para la textura */
+          codigoDeTextura = gl.createTexture();
+          leeLaTextura(gl, "imagenTextura", codigoDeTextura)
+
+
+
+          // Se utiliza los shaders
+          gl.useProgram(programaID);
+
+          // Obtiene los ID de las variables de entrada de los shaders
+          uMatrizProyeccion = gl.getUniformLocation(programaID, "uMatrizProyeccion");
+          uMatrizVista = gl.getUniformLocation(programaID, "uMatrizVista");
+          uMatrizModelo = gl.getUniformLocation(programaID, "uMatrizModelo");
+          uUnidadDeTextura = gl.getUniformLocation(programaID, "uUnidadDeTextura");
+          uPosicionVista = gl.getUniformLocation(programaID, "uPosicionVista");
+          uPosicionLuz = gl.getUniformLocation(programaID, "uPosicionLuz");
+          u_Ia = gl.getUniformLocation(programaID, "u_Ia");
+          u_Id = gl.getUniformLocation(programaID, "u_Id");
+          u_Is = gl.getUniformLocation(programaID, "u_Is");
+          u_brillo = gl.getUniformLocation(programaID, "u_brillo");
+
+          // Configurar valores de iluminación
+          gl.uniform3fv(uPosicionVista, posicionVista);
+          gl.uniform3fv(uPosicionLuz, posicionLuz);
+
+          gl.uniform3f(u_Ia, 0.7, 0.7, 0.7);  // Luz ambiente muy brillante
+          gl.uniform3f(u_Id, 2.0, 2.0, 2.0);  // Luz difusa muy intensa
+          gl.uniform3f(u_Is, 1.5, 1.5, 1.5);  // Luz especular brillante
+          gl.uniform1f(u_brillo, 32.0);
+          
+
+          /* Paso 5: Se define la proyección  
+                                                */
+          // Define la Matriz de Proyección
+          
+          ortho(MatrizProyeccion, -5, 5, -5, 5, -5, 5);
+          // Se envia la Matriz de Proyección al shader
+          gl.uniformMatrix4fv(uMatrizProyeccion, false, MatrizProyeccion);
+
+          /* Paso 6: Se renderizan los objetos                                       */
+
+          /* Matriz del Vista */
+          identidad(MatrizVista);
+
+          // Se envia la Matriz de Vista al shader
+          gl.uniformMatrix4fv(uMatrizVista, false, MatrizVista);
+
+          /* Habilita el ocultamiento de superficies */
+          gl.enable(gl.DEPTH_TEST);
+
+          // Color de fondo          
+          gl.clearColor(0.0, 0.0, 0.0, 1.0);
+          
+
+          dibuja();
+
+        }
+
+        /* Llama a main una vez que la página web se haya cargado. */
+        window.onload = main;
+
+      </script>
+   </body>
+</html>
